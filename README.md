@@ -1,8 +1,14 @@
 # Acoustic-SCR
 Acoustic SCR MCMC samplers
 
-Currently, only the case of stationary callers and known individual ID is in this repository. This is the same model as described by Stevenson et al (2021), but fit via MCMC. The current assumption is that the call rate is Poisson, but it can be changed to any count distribution (but zero truncation requires modifying the custom call number update to prevent proposing that an individual may have 0 calls).
+Currently, only the case of stationary callers and known individual ID is in this repository. This is the same model as described by Stevenson et al (2021), but fit via MCMC and with an attenuation function observation model. The current assumption is that the call rate is Poisson, but it can be changed to any count distribution (but zero truncation requires modifying the custom call number update to prevent proposing that an individual may have 0 calls).
 
 https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.13522
+
+The attenuation function is from Efford and Dawson (2009) and Dawson and Efford (2009)
+
+https://esajournals.onlinelibrary.wiley.com/doi/full/10.1890/08-1735.1
+
+https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/j.1365-2664.2009.01731.x
 
 See testscript.
