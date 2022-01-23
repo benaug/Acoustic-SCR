@@ -1,6 +1,7 @@
 NimModel <- nimbleCode({
   ###priors###
   lambda.C ~ dunif(0,100) #mean calls/individual
+  theta.C ~ dunif(0,100) #NB overdispersion parameter
   #attenuation function parameters
   beta0 ~ dunif(50,100)
   beta1 ~ dunif(-100,0) #assuming must be negative (dB decays with distance)
@@ -8,13 +9,16 @@ NimModel <- nimbleCode({
   #data augmentation prior
   psi~dunif(0,1)
   
+  #negative binomial p for call rate model
+  p.C <- theta.C/(theta.C+lambda.C)
+  
   ###likelihoods (except for s priors)###
   for(i in 1:M){
     z[i] ~ dbern(psi)
     s[i,1] ~ dunif(xlim[1],xlim[2])
     s[i,2] ~ dunif(ylim[1],ylim[2])
     #call model
-    calls[i] ~ dpois(lambda.C) #number of total calls per individual
+    calls[i] ~ T(dnbinom(p=p.C, size=theta.C),1,) #number of total calls per individual. zero truncated
     calls.zero[i] <- calls[i]-calls.detected[i] #number of undetected calls per individual
     #detection model
     D[i,1:J] <- GetD(s=s[i,1:2], X=X[1:J,1:2], z=z[i])
@@ -138,7 +142,12 @@ callSampler <- nimbleFunction(
   },
   run = function() {
     if(model$z[i]==0){ #if z is off, propose from prior
-      calls.cand=rpois(1,model$lambda.C[1])
+      #simulating from ztNB by just rejecting zeros
+      #will be inefficient when the mean is very small.
+      calls.cand=0
+      while(calls.cand<1){
+        calls.cand=rnbinom(1,p=model$p.C[1],size=model$theta.C[1])
+      }
       model$calls[i] <<- calls.cand
       model$calculate(calcNodes)
       copy(from = model, to = mvSaved, row = 1, nodes = calcNodes, logProb = TRUE)

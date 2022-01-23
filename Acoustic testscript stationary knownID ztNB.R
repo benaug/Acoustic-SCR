@@ -1,8 +1,18 @@
+#This script considers a zero-truncated negative binomial call rate model
+#The relevant changes over the Poisson model is that 1) we change the BUGS
+#code to a truncated negative binomial and 2) in the custom call number update,
+#we reject counts less than 1 instead of counts less than 0.
+
+#I think it is generally hard to detect overdispersion in this type of model with
+#imperfect detection of a relatively small number of counts (detected individuals)
+#these simulation settings may not be realistic or sufficient to reliably estimate
+#the overdispersion parameter
+
 library(nimble)
 library(coda)
-source("sim.Acoustic.ss.R")
+source("sim.Acoustic.ss.ztNB.R")
 source("build.cluster.R")
-source("NimbleModel Acoustic SCR Stationary knownID.R")
+source("NimbleModel Acoustic SCR Stationary knownID ztNB.R")
 
 #Simulation parameters
 
@@ -11,7 +21,8 @@ N=40 #Abundance
 X=expand.grid(0:10,0:10) #regular grid
 # X=build.cluster(ntraps=64,clusterdim=4,spacingin=1,spacingout=4,plotit = TRUE) #cluster grid
 buff=3 #ARU buffer around ARU array to define rectangular state space
-lambda.C=10 #mean # calls/ind (Poisson call rate assumption, modifying requires modifying custom callSampler)
+lambda.C=8 #call rate lambda parameter
+theta.C=0.75 #negative binomial overdispersion parameter for call rate (smaller is more overdispersion)
 sigma.u=0 #BVN individual movement parameter. This sampler is for no movement, so sigma.u should be set to 0.
 #data plot below doesn't illustrate movement if you simulate it.
 
@@ -22,8 +33,12 @@ sigma.d=2 #attenuation function error variance
 mindB=60 #dB detection threshold (cannot detect call with received dB lower than this)
 
 #simulate data
-data=sim.Acoustic.ss(N=N,beta0=beta0,beta1=beta1,sigma.d=sigma.d,sigma.u=sigma.u,mindB=mindB,X=X,
-                     buff=buff,lambda.C=lambda.C)
+data=sim.Acoustic.ss.ztNB(N=N,beta0=beta0,beta1=beta1,sigma.d=sigma.d,sigma.u=sigma.u,mindB=mindB,X=X,
+                     buff=buff,lambda.C=lambda.C,theta.C=theta.C)
+#look at overdispersion. mean=var is Poisson, ignoring zero-truncation.
+hist(data$n.calls)
+mean(data$n.calls)
+var(data$n.calls)
 
 #The observed data:
 #1) the call by ARU detection history with NA for nondetections and a dB level for detections
@@ -109,17 +124,18 @@ beta0.init=max(data$dB.obs,na.rm=TRUE) #maximum observed received dB is a good s
 beta1.init=rnorm(1,beta1,1) #can let nimble draw these from prior, but may not converge if nowhere near truth.
 sigma.d.init=rnorm(1,sigma.d,0.1)
 lambda.C.init=mean(calls.init)
+theta.C.init=1 #something close to strong overdispersion (smaller is greater)
 
 #supply stuff to nimble
-Niminits <- list(z=z.init,calls=calls.init,s=s.init,beta0=beta0.init,beta1=beta1.init,
-                 sigma.d=sigma.d.init,lambda.C=lambda.C.init,calls=calls.init)
+Niminits <- list(z=z.init,calls=calls.init,s=s.init,beta0=beta0.init,beta1=beta1.init,sigma.d=sigma.d.init,
+                 lambda.C=lambda.C.init,theta.C=theta.C.init,calls=calls.init)
 constants<-list(M=M,xlim=data$xlim,ylim=data$ylim,J=J,n.calls=n.calls,zeros=zeros,callID=callID,mindB=mindB,
                 calls.detected=calls.detected,X=as.matrix(X))
 Nimdata<-list(dB=dB,dB.unobs=matrix(TRUE,M,J),z=z.data,calls=rep(NA,M))
 
 # set parameters to monitor
-parameters<-c('beta0','beta1','sigma.d','lambda.C','N.ind','N.call','psi')
-parameters2=c("s") #monitor other things. with (possibly) different thinning rate...
+parameters<-c('beta0','beta1','sigma.d','lambda.C','theta.C','N.ind','N.call','psi')
+parameters2=c("s",'calls') #monitor other things. with (possibly) different thinning rate...
 
 start.time<-Sys.time()
 Rmodel <- nimbleModel(code=NimModel, constants=constants,data=Nimdata,check=FALSE,inits=Niminits)
@@ -186,6 +202,7 @@ data$n.call #True number of calls
 #if you monitor s (and don't thin), you can calculate the acceptance rate. Should remove some burnin
 #after looking at some s posteriors
 mvSamples2=as.matrix(Cmcmc$mvSamples2)
+plot(mcmc(mvSamples2[2:nrow(mvSamples2),]))
 burnin=1000
 1-rejectionRate(mcmc(mvSamples2[burnin:nrow(mvSamples2),]))
 
