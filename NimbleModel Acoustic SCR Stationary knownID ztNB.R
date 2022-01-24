@@ -161,10 +161,10 @@ callSampler <- nimbleFunction(
       for(up in 1:call.ups){ #how many updates per iteration?
         #propose to add/subtract 1
         updown=rbinom(1,1,0.5) #p=0.5 is symmetric
-        reject=FALSE #we reject if 1) proposed counts <0 or 2) you select a detected call
+        reject=FALSE #we reject if 1) proposed counts <1 (bc zero truncation) or 2) you select a detected call
         if(updown==0){#subtract
           calls.cand=model$calls[i]-1
-          if(model$calls[i]==0){
+          if(model$calls[i]==1){ #can't subtract from a 1 bc zero truncation. would be rejected by MH anyway.
             reject=TRUE
           }else{
             tmp=rcat(1,rep(1/model$calls[i],model$calls[i])) #select one of the calls
