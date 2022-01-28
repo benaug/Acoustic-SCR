@@ -1,7 +1,7 @@
 # Acoustic-SCR
 Acoustic SCR MCMC samplers
 
-This repository contains MCMC samplers for acoustic SCR that I am converting over to nimble. I consider stationary and mobile callers (bivariate normal movement) and known, unknown, and partial individual IDs. I have provided examples here for stationary and mobile callers with known individual IDs. I will upload the remainder after a preprint is posted. The slides from my Euring 2021 talk are in this repository (those results are from the R-based samplers, nimble should be faster).
+This repository contains MCMC samplers for acoustic SCR that I am converting over to nimble. I consider stationary and mobile callers (bivariate normal movement) and known, unknown, and partial individual IDs. I have provided examples here for stationary and mobile callers with known individual IDs. I will upload the remainder after a preprint is posted. The slides from my Euring 2021 talk are in this repository. Those results are from the R-based samplers, nimble should be faster. Also, I truncated the BVN cluster dispersion model by the state space extent there, but I don't do that in nimble because it is slower and not necessary. You just need to make sure you buffer the ARU array by at least 1/2 the 95-99% BVN radius or so.
 
 The model for stationary callers with known ID is the same as the model described by Stevenson et al (2021), but fit via MCMC and with an attenuation function observation model. For this model, there are 2 testscripts, one assuming that the call rate is Poisson and another assuming it is zero-truncated negative binomial. Any count distribution is allowed, but care should be taken that the custom count update is correct for a given count model.
 
