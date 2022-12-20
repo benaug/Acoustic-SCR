@@ -5,9 +5,10 @@ source("build.cluster.R")
 source("NimbleModel Acoustic SCR Mobile knownID.R")
 source("init.data.mobile.knownID.R")
 
-#make sure to run this line!
-nimble:::setNimbleOption('MCMCjointlySamplePredictiveBranches', FALSE)
-nimbleOptions('MCMCjointlySamplePredictiveBranches') 
+#If using Nimble version 0.13.1 and you must run this line 
+nimbleOptions(determinePredictiveNodesInModel = FALSE)
+# #If using Nimble before version 0.13.1, run this line instead
+# nimble:::setNimbleOption('MCMCjointlySamplePredictiveBranches', FALSE) 
 
 #Simulation parameters
 
