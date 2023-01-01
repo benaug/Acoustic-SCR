@@ -18,7 +18,7 @@ NimModel <- nimbleCode({
     s[i,1] ~ dunif(xlim[1],xlim[2])
     s[i,2] ~ dunif(ylim[1],ylim[2])
     #call model
-    calls[i] ~ T(dnbinom(p=p.C, size=theta.C),1,) #number of total calls per individual. zero truncated
+    calls[i] ~ dztnegbin(p.C=p.C, theta.C=theta.C) #number of total calls per individual
     calls.zero[i] <- calls[i]-calls.detected[i] #number of undetected calls per individual
     #detection model
     D[i,1:J] <- GetD(s=s[i,1:2], X=X[1:J,1:2], z=z[i])
@@ -131,6 +131,39 @@ rNoDetect <- nimbleFunction(
   }
 )
 
+dztnegbin <- nimbleFunction(
+  run = function(x=double(0), p.C = double(0), theta.C = double(0), log = integer(0)) {
+    returnType(double(0))  
+    if(x==0){
+      prob = 0
+    }else{
+      prob = dnbinom(x, prob=p.C, size=theta.C)/(1-dnbinom(0, prob=p.C, size=theta.C))
+    }
+    if(log){
+      return(log(prob))
+    }else{
+      return(prob)
+    }
+  }
+)
+
+#From Peter Dalgaard via Simon Bonnor
+#https://simon.bonners.ca/bonner-lab/wpblog/?p=102
+rztnegbin <- nimbleFunction(
+  run = function(n=integer(0), p.C = double(0), theta.C = double(0)) {
+    returnType(double(0))
+    if(n>1){
+      print("rztnegbin only handles n=1")
+    }else{
+      tmp <- runif(n, dnbinom(0, prob=p.C, size=theta.C), 1)
+      x <- qnbinom(tmp[1], prob=p.C, size=theta.C)
+      return(x)
+    }
+  }
+)
+
+
+
 #Required custom update for number of calls
 callSampler <- nimbleFunction(
   contains = sampler_BASE,
@@ -146,7 +179,7 @@ callSampler <- nimbleFunction(
       #will be inefficient when the mean is very small.
       calls.cand=0
       while(calls.cand<1){
-        calls.cand=rnbinom(1,p=model$p.C[1],size=model$theta.C[1])
+        calls.cand=rztnegbin(1,p.C=model$p.C[1],theta.C=model$theta.C[1])
       }
       model$calls[i] <<- calls.cand
       model$calculate(calcNodes)
@@ -186,41 +219,6 @@ callSampler <- nimbleFunction(
           } else {
             copy(from = mvSaved, to = model, row = 1, nodes = calcNodes, logProb = TRUE)
           }
-        }
-      }
-    }
-  },
-  methods = list( reset = function () {} )
-)
-
-sSampler <- nimbleFunction(
-  contains = sampler_BASE,
-  setup = function(model, mvSaved, target, control) {
-    i<-control$i    
-    scale<-control$scale
-    xlim<-control$xlim
-    ylim<-control$ylim
-    calcNodes <- model$getDependencies(target)
-  },
-  run = function() {
-    z <- model$z[i]
-    if(z==0){#propose from unifrom prior
-      model$s[i, 1:2] <<- c(runif(1, xlim[1], xlim[2]), runif(1, ylim[1], ylim[2]))
-      model$calculate(calcNodes)
-      copy(from = model, to = mvSaved, row = 1, nodes = calcNodes, logProb = TRUE)
-    }else{#MH
-      s.cand=c(rnorm(1,model$s[i,1],scale), rnorm(1,model$s[i,2],scale))
-      inbox= s.cand[1]< xlim[2] & s.cand[1]> xlim[1] & s.cand[2] < ylim[2] & s.cand[2] > ylim[1]
-      if(inbox){
-        model_lp_initial <- model$getLogProb(calcNodes)
-        model$s[i, 1:2] <<- s.cand
-        model_lp_proposed <- model$calculate(calcNodes)
-        log_MH_ratio <- model_lp_proposed - model_lp_initial
-        accept <- decide(log_MH_ratio)
-        if(accept) {
-          copy(from = model, to = mvSaved, row = 1, nodes = calcNodes, logProb = TRUE)
-        } else {
-          copy(from = mvSaved, to = model, row = 1, nodes = calcNodes, logProb = TRUE)
         }
       }
     }

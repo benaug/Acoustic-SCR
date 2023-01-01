@@ -1,6 +1,6 @@
 #This script considers a zero-truncated negative binomial call rate model
 #The relevant changes over the Poisson model is that 1) we change the BUGS
-#code to a truncated negative binomial and 2) in the custom call number update,
+#code to a custom zero-truncated negative binomial and 2) in the custom call number update,
 #we reject counts less than 1 instead of counts less than 0.
 
 #I think it is generally hard to detect overdispersion in this type of model with
@@ -22,7 +22,7 @@ X=expand.grid(0:10,0:10) #regular grid
 # X=build.cluster(ntraps=64,clusterdim=4,spacingin=1,spacingout=4,plotit = TRUE) #cluster grid
 buff=3 #ARU buffer around ARU array to define rectangular state space
 lambda.C=8 #call rate lambda parameter
-theta.C=0.75 #negative binomial overdispersion parameter for call rate (smaller is more overdispersion)
+theta.C=1 #negative binomial overdispersion parameter for call rate (smaller is more overdispersion)
 sigma.u=0 #BVN individual movement parameter. This sampler is for no movement, so sigma.u should be set to 0.
 #data plot below doesn't illustrate movement if you simulate it.
 
@@ -155,22 +155,11 @@ for(i in 1:M){
 
 
 #Optional sampler replacements
-#update x and y dimensions of s jointly. You can choose a nimble sampler here and a block RW is appropriate.
-#But it tunes the undetected individual activity centers very poorly since their z=0 frequently. As a result,
-#the proposal converges such that the activity centers rarely move when z=1 for these individuals. This is OK,
-#because they are being turned on and off and can move while off, but may cause poor mixing (not sure).
-#The custom "sSampler" lets you choose 1 tuning parameter for all activity centers. Then, you just make sure
-#the acceptance rates for the detected individuals aren't lower than 0.2 or so. I'm not really sure which
-#is the best strategy, but YOU MUST TUNE the custom sampler yourself with "scale" via trial and error.
+#update x and y dimensions of s jointly.
 conf$removeSampler(paste("s[1:",M,", 1:2]", sep=""))
 for(i in 1:M){
   conf$addSampler(target = paste("s[",i,", 1:2]", sep=""),
                   type = 'RW_block',control=list(adaptive=TRUE),silent = TRUE)
-  #can try not tuning the covariance as well, which might be better for undetected guys?
-  # conf$addSampler(target = paste("s[",i,", 1:2]", sep=""),
-  #                 type = 'RW_block',control=list(adaptive=TRUE,adaptScaleOnly=TRUE),silent = TRUE)
-  # conf$addSampler(target = paste("s[",i,", 1:2]", sep=""),
-  #                 type = 'sSampler',control=list(i=i,xlim=data$xlim,ylim=data$ylim,scale=0.1),silent = TRUE)
 }
 #beta0 and beta1 posteriors are highly correlated
 #RW_block is another option. AF slice mixes better, but is slower. Not sure which is more computationally efficient
@@ -188,7 +177,7 @@ Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 
 # Run the model
 start.time2<-Sys.time()
-Cmcmc$run(2000,reset=FALSE) #short run for demonstration. Can run again to continue sampling where it stopped.
+Cmcmc$run(1000,reset=FALSE) #short run for demonstration. Can run again to continue sampling where it stopped.
 end.time<-Sys.time()
 end.time-start.time  # total time for compilation, replacing samplers, and fitting
 end.time-start.time2 # post-compilation run time
