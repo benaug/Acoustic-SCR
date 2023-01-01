@@ -139,22 +139,11 @@ for(i in 1:M){
 
 
 #Optional sampler replacements
-#update x and y dimensions of s jointly. You can choose a nimble sampler here and a block RW is appropriate.
-#But it tunes the undetected individual activity centers very poorly since their z=0 frequently. As a result,
-#the proposal converges such that the activity centers rarely move when z=1 for these individuals. This is OK,
-#because they are being turned on and off and can move while off, but may cause poor mixing (not sure).
-#The custom "sSampler" lets you choose 1 tuning parameter for all activity centers. Then, you just make sure
-#the acceptance rates for the detected individuals aren't lower than 0.2 or so. I'm not really sure which
-#is the best strategy, but YOU MUST TUNE the custom sampler yourself with "scale" via trial and error.
+#update x and y dimensions of s jointly.
 conf$removeSampler(paste("s[1:",M,", 1:2]", sep=""))
 for(i in 1:M){
   conf$addSampler(target = paste("s[",i,", 1:2]", sep=""),
                   type = 'RW_block',control=list(adaptive=TRUE),silent = TRUE)
-  #can try not tuning the covariance as well, which might be better for undetected guys?
-  # conf$addSampler(target = paste("s[",i,", 1:2]", sep=""),
-  #                 type = 'RW_block',control=list(adaptive=TRUE,adaptScaleOnly=TRUE),silent = TRUE)
-  # conf$addSampler(target = paste("s[",i,", 1:2]", sep=""),
-  #                 type = 'sSampler',control=list(i=i,xlim=data$xlim,ylim=data$ylim,scale=0.1),silent = TRUE)
 }
 #beta0 and beta1 posteriors are highly correlated
 #RW_block is another option. AF slice mixes better, but is slower. Not sure which is more computationally efficient
