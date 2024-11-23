@@ -12,23 +12,23 @@ nimbleOptions(determinePredictiveNodesInModel = FALSE)
 
 #Simulation parameters
 
-N=40#Abundance
+N <- 40 #Abundance
 #Make an ARU array
-X=expand.grid(0:10,0:10) #regular grid
-# X=build.cluster(ntraps=64,clusterdim=4,spacingin=1,spacingout=4,plotit = TRUE) #cluster grid
-buff=3 #ARU buffer around ARU array to define rectangular state space
-lambda.C=10 #mean # calls/ind (Poisson call rate assumption)
-sigma.u=0.25 #BVN individual movement parameter. This sampler is for no movement, so sigma.u should be set to 0.
+X <- expand.grid(0:10,0:10) #regular grid
+# X <- build.cluster(ntraps=64,clusterdim=4,spacingin=1,spacingout=4,plotit = TRUE) #cluster grid
+buff <- 3 #ARU buffer around ARU array to define rectangular state space
+lambda.C <- 10 #mean # calls/ind (Poisson call rate assumption)
+sigma.u <- 0.25 #BVN individual movement parameter. This sampler is for no movement, so sigma.u should be set to 0.
 #data plot below doesn't illustrate movement if you simulate it.
 
 #attenuation function parameters
-beta0=70 #dB at call source
-beta1=-15 #slope for expected dB as function of distance from call source
-sigma.d=2 #attenuation function error variance
-mindB=60 #dB detection threshold (cannot detect call with received dB lower than this)
+beta0 <- 70 #dB at call source
+beta1 <- -15 #slope for expected dB as function of distance from call source
+sigma.d <- 2 #attenuation function error variance
+mindB <- 60 #dB detection threshold (cannot detect call with received dB lower than this)
 
 #simulate data
-data=sim.Acoustic.ss(N=N,beta0=beta0,beta1=beta1,sigma.d=sigma.d,sigma.u=sigma.u,mindB=mindB,X=X,
+data <- sim.Acoustic.ss(N=N,beta0=beta0,beta1=beta1,sigma.d=sigma.d,sigma.u=sigma.u,mindB=mindB,X=X,
                      buff=buff,lambda.C=lambda.C)
 
 #The observed data:
@@ -59,64 +59,64 @@ mean(table(data$clusterID))
 data$n.ind.obs  
 
 #Process data for nimble
-dummydB=99999 #dummy number for call-ARU nondetection events. NA's throw nimble warnings.
-dB=data$dB.obs
-dB[is.na(dB)]=dummydB
-callID=data$clusterID.obs
-zeros=dB==dummydB #zeros indicates the nondetection events
-n.calls=nrow(dB)
-J=nrow(X)
+dummydB <- 99999 #dummy number for call-ARU nondetection events. NA's throw nimble warnings.
+dB <- data$dB.obs
+dB[is.na(dB)] <- dummydB
+callID <- data$clusterID.obs
+zeros <- dB==dummydB #zeros indicates the nondetection events
+n.calls <- nrow(dB)
+J <- nrow(X)
 
-M.s=75 #individual data augmentation level. Raise this if N.ind posterior ever hits M.s.
-M.u=750 #call data augmentation level. Raise this if N.call posterior ever hits M.u
+M.s <- 75 #individual data augmentation level. Raise this if N.ind posterior ever hits M.s.
+M.u <- 750 #call data augmentation level. Raise this if N.call posterior ever hits M.u
 #Really, it is more nuanced than that. You can never let N.call get close enough to M.u
 #that a new individual cannot be turned on with it's expected number of calls. I have 
 #nimble print warnings if you need to raise M.u.
 
 
 #initialize some data structures and latent variables
-inits=list(psi=0.5) #requires a psi init. Not really important to give this init to nimble.
-nimbuild=init.data(data=data,inits=inits,M.s=M.s,M.u=M.u)
+inits <- list(psi=0.5) #requires a psi init. Not really important to give this init to nimble.
+nimbuild <- init.data(data=data,inits=inits,M.s=M.s,M.u=M.u)
 
 #build z.s.data. Every individual with a detected call gets a "1", all else NA to be estimated
-z.s.data=rep(NA,M.s)
-z.s.data[unique(callID)]=1
+z.s.data <- rep(NA,M.s)
+z.s.data[unique(callID)] <- 1
 
 #build z.u.data. Every detected call gets a "1", all else NA to be estimated
-z.u.data=rep(NA,M.u)
-z.u.data[1:length(callID)]=1
+z.u.data <- rep(NA,M.u)
+z.u.data[1:length(callID)] <- 1
 
 #Augment zeros and dB
-zeros.extra=matrix(rep(TRUE,J*(M.u-n.calls)),nrow=M.u-n.calls,byrow=TRUE)
-zeros=rbind(zeros,zeros.extra)
+zeros.extra <- matrix(rep(TRUE,J*(M.u-n.calls)),nrow=M.u-n.calls,byrow=TRUE)
+zeros <- rbind(zeros,zeros.extra)
 
-dB.extra=matrix(rep(dummydB,J*(M.u-n.calls)),nrow=M.u-n.calls,byrow=TRUE)
-dB=rbind(dB,dB.extra)
+dB.extra <- matrix(rep(dummydB,J*(M.u-n.calls)),nrow=M.u-n.calls,byrow=TRUE)
+dB <- rbind(dB,dB.extra)
 
 #which calls are detected vs. augmented
-calls.detected=1*(rowSums(dB!=dummydB)>0)
+calls.detected <- 1*(rowSums(dB!=dummydB)>0)
 
 #ballpark inits for attenuation function parameters - Check attenuation priors to make sure they are appropriate!
-beta0.init=max(data$dB.obs,na.rm=TRUE) #maximum observed received dB is a good starting value
-beta1.init=rnorm(1,beta1,1) #can let nimble draw this from prior, but may not converge if nowhere near truth.
-sigma.d.init=rnorm(1,sigma.d,0.1)
-lambda.C.init=mean(nimbuild$calls)
-sigma.u.init=abs(rnorm(1,sigma.u,0.10))
+beta0.init <- max(data$dB.obs,na.rm=TRUE) #maximum observed received dB is a good starting value
+beta1.init <- rnorm(1,beta1,1) #can let nimble draw this from prior, but may not converge if nowhere near truth.
+sigma.d.init <- rnorm(1,sigma.d,0.1)
+lambda.C.init <- mean(nimbuild$calls)
+sigma.u.init <- abs(rnorm(1,sigma.u,0.10))
 
 #supply stuff to nimble
 Niminits <- list(z.s=nimbuild$z.s,z.u=nimbuild$z.u,calls=nimbuild$calls,s=nimbuild$s,
                  u=nimbuild$u,calls=nimbuild$calls,beta0=beta0.init,beta1=beta1.init,
                  sigma.d=sigma.d.init,lambda.C=lambda.C.init,sigma.u=sigma.u.init)
-constants<-list(M.s=M.s,M.u=M.u,xlim=data$xlim,ylim=data$ylim,J=J,n.calls=n.calls,zeros=zeros,
+constants <- list(M.s=M.s,M.u=M.u,xlim=data$xlim,ylim=data$ylim,J=J,n.calls=n.calls,zeros=zeros,
                 mindB=mindB,X=as.matrix(X))
-Nimdata<-list(dB=dB,z.s=z.s.data,z.u=z.u.data,calls=rep(NA,M.s),callID=nimbuild$callID)
+Nimdata <- list(dB=dB,z.s=z.s.data,z.u=z.u.data,calls=rep(NA,M.s),callID=nimbuild$callID)
 
 # set parameters to monitor
-parameters<-c('beta0','beta1','sigma.d','lambda.C','N.ind','N.call','psi','sigma.u')
+parameters <- c('beta0','beta1','sigma.d','lambda.C','N.ind','N.call','psi','sigma.u')
 #You must set the tuning parameters for s and u, so you should record them without thinning
-parameters2=c("s","u","calls")
+parameters2 <- c("s","u","calls")
 
-start.time<-Sys.time()
+start.time <- Sys.time()
 Rmodel <- nimbleModel(code=NimModel, constants=constants,data=Nimdata,check=FALSE,inits=Niminits)
 conf <- configureMCMC(Rmodel,monitors=parameters, thin=1, monitors2=parameters2,thin2=1,useConjugacy = TRUE)
 
@@ -164,13 +164,13 @@ Cmodel <- compileNimble(Rmodel)
 Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 
 # Run the model
-start.time2<-Sys.time()
+start.time2 <- Sys.time()
 Cmcmc$run(1500,reset=FALSE) #short run for demonstration. Can run again to continue sampling where it stopped.
-end.time<-Sys.time()
+end.time <- Sys.time()
 end.time-start.time  # total time for compilation, replacing samplers, and fitting
 end.time-start.time2 # post-compilation run time
 
-mvSamples=as.matrix(Cmcmc$mvSamples)
+mvSamples <- as.matrix(Cmcmc$mvSamples)
 plot(mcmc(mvSamples[2:nrow(mvSamples),]))
 
 data$n.call #True number of calls
@@ -178,25 +178,25 @@ data$n.call #True number of calls
 
 #if you monitor s (and don't thin), you can calculate the acceptance rate. Should remove some burnin
 #after looking at some s posteriors
-mvSamples2=as.matrix(Cmcmc$mvSamples2)
+mvSamples2 <- as.matrix(Cmcmc$mvSamples2)
 
 #check s and u acceptance rates
-burnin=500 #discard some burnin
+burnin <- 500 #discard some burnin
 
 #we want to look at the minimum acceptance rates since there is only 1 tuning parameter for all u's
 #pull out u indicies
-idx=grep("u",colnames(mvSamples2))
+idx <- grep("u",colnames(mvSamples2))
 #for u, only the detected calls are always updated. All other acceptance rates can be ignored.
-idx=idx[1:data$n.call]
+idx <- idx[1:data$n.call]
 min(1-rejectionRate(mcmc(mvSamples2[burnin:nrow(mvSamples2),idx]))) #shoot for 0.2 or so
 
 #pull out s indices
-idx=grep("\\bs\\b",colnames(mvSamples2)) #using exact match in grep here
+idx <- grep("\\bs\\b",colnames(mvSamples2)) #using exact match in grep here
 #for s, only individuals with detected calls are always updated using MH. 
 #All other acceptance rates can be ignored.
-idx=idx[1:data$n.ind.obs]
+idx <- idx[1:data$n.ind.obs]
 min(1-rejectionRate(mcmc(mvSamples2[burnin:nrow(mvSamples2),idx]))) #shoot for 0.2 or so
 
 #posterior for each individual's true number of calls
-idx=grep("calls",colnames(mvSamples2))
+idx <- grep("calls",colnames(mvSamples2))
 plot(mcmc(mvSamples2[5:nrow(mvSamples2),idx]))

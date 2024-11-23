@@ -34,7 +34,7 @@ NimModel <- nimbleCode({
 GetD <- nimbleFunction(
   run = function(s = double(1), X=double(2),z=double(0)){
     returnType(double(1))
-    J=nimDim(X)[1]
+    J <- nimDim(X)[1]
     if(z==0){
       D <- rep(0,J)
     }else{
@@ -47,7 +47,7 @@ GetD <- nimbleFunction(
 GetMu <- nimbleFunction(
   run = function(beta0=double(0),beta1=double(0), D = double(1),z=double(0)){
     returnType(double(1))
-    J=nimDim(D)[1]
+    J <- nimDim(D)[1]
     if(z==0){
       mu <- rep(0,J)
     }else{
@@ -61,13 +61,13 @@ ddB <- nimbleFunction(
   run = function(x = double(1),mu = double(1), zeros = double(1),sigma.d = double(0),
                  mindB = double(0), log = integer(0)) {
     returnType(double(0))
-    J=nimDim(x)[1]
-    logProb=0
+    J <- nimDim(x)[1]
+    logProb <- 0
     for(j in 1:J){
       if(zeros[j]){ #below dB threshold
-        logProb = logProb + pnorm(mindB, mu[j],sigma.d,log=TRUE)
+        logProb <- logProb + pnorm(mindB, mu[j],sigma.d,log=TRUE)
       }else{ #above dB threshold
-        logProb = logProb + dnorm(x[j],mu[j],sigma.d,log=TRUE)
+        logProb <- logProb + dnorm(x[j],mu[j],sigma.d,log=TRUE)
       }
     }
     if(log){
@@ -83,7 +83,7 @@ rdB <- nimbleFunction(
   run = function(n = integer(0),mu = double(1), zeros = double(1),sigma.d = double(0),
                  mindB = double(0)) {
     returnType(double(1))
-    J=nimDim(mu)[1]
+    J <- nimDim(mu)[1]
     return(rep(0,J))
   }
 )
@@ -94,19 +94,19 @@ dNoDetect <- nimbleFunction(
                  log = integer(0)) {
     returnType(double(0))
     if(z==0){
-      logProb=0
+      logProb <- 0
     }else{
       if(calls.zero<0){#keeps calls >= calls.detected
-        logProb=-Inf
+        logProb <- -Inf
       }else if(calls.zero==0){ #0 undetected calls for this individual
-        logProb=0
+        logProb <- 0
       }else{ #calls.zero undetected calls for this individual
-        J=nimDim(x)[1]
-        logProb.tmp=0
+        J <- nimDim(x)[1]
+        logProb.tmp <- 0
         for(j in 1:J){
           logProb.tmp <- logProb.tmp + pnorm(mindB, mu[j],sigma.d,log=TRUE)
         }
-        logProb=calls.zero*logProb.tmp
+        logProb <- calls.zero*logProb.tmp
       }
     }
     if(log){
@@ -122,7 +122,7 @@ rNoDetect <- nimbleFunction(
   run = function(n=integer(0), z = double(0), calls.zero = double(0),
                  mu = double(1),mindB = double(0), sigma.d = double(0)) {
     returnType(double(1))
-    J=nimDim(mu)[1]
+    J <- nimDim(mu)[1]
     return(rep(0,J))
   }
 )
@@ -151,20 +151,20 @@ callSampler <- nimbleFunction(
       #You must account for this or it won't work.
       for(up in 1:call.ups){ #how many updates per iteration?
         #propose to add/subtract 1
-        updown=rbinom(1,1,0.5) #p=0.5 is symmetric
+        updown <- rbinom(1,1,0.5) #p=0.5 is symmetric
         reject=FALSE #we reject if 1) proposed counts <0 or 2) you select a detected call
         if(updown==0){#subtract
-          calls.cand=model$calls[i]-1
+          calls.cand <- model$calls[i]-1
           if(model$calls[i]==0){
-            reject=TRUE
+            reject <- TRUE
           }else{
-            tmp=rcat(1,rep(1/model$calls[i],model$calls[i])) #select one of the calls
+            tmp <- rcat(1,rep(1/model$calls[i],model$calls[i])) #select one of the calls
             if(tmp<=calls.detected){ #is it one of the detected calls?
-              reject=TRUE #if so, we reject
+              reject <- TRUE #if so, we reject
             }
           }
         }else{#add
-          calls.cand=model$calls[i]+1
+          calls.cand <- model$calls[i]+1
         }
         if(!reject){
           model.lp.initial <- model$getLogProb(calcNodes)

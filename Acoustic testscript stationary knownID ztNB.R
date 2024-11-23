@@ -16,24 +16,24 @@ source("NimbleModel Acoustic SCR Stationary knownID ztNB.R")
 
 #Simulation parameters
 
-N=40 #Abundance
+N <- 40 #Abundance
 #Make an ARU array
-X=expand.grid(0:10,0:10) #regular grid
-# X=build.cluster(ntraps=64,clusterdim=4,spacingin=1,spacingout=4,plotit = TRUE) #cluster grid
-buff=3 #ARU buffer around ARU array to define rectangular state space
-lambda.C=8 #call rate lambda parameter
-theta.C=1 #negative binomial overdispersion parameter for call rate (smaller is more overdispersion)
-sigma.u=0 #BVN individual movement parameter. This sampler is for no movement, so sigma.u should be set to 0.
+X <- expand.grid(0:10,0:10) #regular grid
+# X <- build.cluster(ntraps=64,clusterdim=4,spacingin=1,spacingout=4,plotit = TRUE) #cluster grid
+buff <- 3 #ARU buffer around ARU array to define rectangular state space
+lambda.C <- 8 #call rate lambda parameter
+theta.C <- 1 #negative binomial overdispersion parameter for call rate (smaller is more overdispersion)
+sigma.u <- 0 #BVN individual movement parameter. This sampler is for no movement, so sigma.u should be set to 0.
 #data plot below doesn't illustrate movement if you simulate it.
 
 #attenuation function parameters
-beta0=70 #dB at call source
-beta1=-15 #slope for expected dB as function of distance from call source
-sigma.d=2 #attenuation function error variance
-mindB=60 #dB detection threshold (cannot detect call with received dB lower than this)
+beta0 <- 70 #dB at call source
+beta1 <- -15 #slope for expected dB as function of distance from call source
+sigma.d <- 2 #attenuation function error variance
+mindB <- 60 #dB detection threshold (cannot detect call with received dB lower than this)
 
 #simulate data
-data=sim.Acoustic.ss.ztNB(N=N,beta0=beta0,beta1=beta1,sigma.d=sigma.d,sigma.u=sigma.u,mindB=mindB,X=X,
+data <- sim.Acoustic.ss.ztNB(N=N,beta0=beta0,beta1=beta1,sigma.d=sigma.d,sigma.u=sigma.u,mindB=mindB,X=X,
                      buff=buff,lambda.C=lambda.C,theta.C=theta.C)
 #look at overdispersion. mean=var is Poisson, ignoring zero-truncation.
 hist(data$n.calls)
@@ -51,10 +51,10 @@ nrow(data$dB.obs)==length(data$clusterID.obs)
 #plot data
 par(mfrow=c(1,1),ask=FALSE)
 plot(NA,xlim=data$xlim,ylim=data$ylim,xlab="X",ylab="Y")
-y2D=apply(!is.na(data$dB.obs),c(1,2),sum)
-cap=which(rowSums(y2D)>0)
+y2D <- apply(!is.na(data$dB.obs),c(1,2),sum)
+cap <- which(rowSums(y2D)>0)
 for(i in cap){
-  trapcap=which(y2D[i,]>0)
+  trapcap <- which(y2D[i,]>0)
   for(j in trapcap){
     lines(x=c(data$s.obs[data$clusterID.obs[i],1],X[j,1]),y=c(data$s.obs[data$clusterID.obs[i],2],X[j,2]),lty=1,col="#999999",lwd=2)
   }
@@ -71,73 +71,73 @@ mean(table(data$clusterID))
 data$n.ind.obs  
 
 #Process data for nimble
-dummydB=99999 #dummy number for call-ARU nondetection events. NA's throw nimble warnings.
-dB=data$dB.obs
-dB[is.na(dB)]=dummydB
-callID=data$clusterID.obs
-zeros=dB==dummydB #zeros indicates the nondetection events
-n.calls=nrow(dB)
-J=nrow(X)
+dummydB <- 99999 #dummy number for call-ARU nondetection events. NA's throw nimble warnings.
+dB <- data$dB.obs
+dB[is.na(dB)] <- dummydB
+callID <- data$clusterID.obs
+zeros <- dB==dummydB #zeros indicates the nondetection events
+n.calls <- nrow(dB)
+J <- nrow(X)
 
-M=75 #data augmentation level. Raise this if N posterior ever hits M.
+M <- 75 #data augmentation level. Raise this if N posterior ever hits M.
 
 #build z.data. Every individual with a detected call gets a "1", all else NA to be estimated
-z.data=rep(NA,M)
-z.data[unique(callID)]=1
+z.data <- rep(NA,M)
+z.data[unique(callID)] <- 1
 
 #build counts.detected, detected counts per individual
-calls.detected=rep(M,0) 
+calls.detected <- rep(M,0) 
 for(i in 1:M){
-  calls.detected[i]=sum(callID==i)
+  calls.detected[i] <- sum(callID==i)
 }
 
 #inits for nimble.
-z.init=z.data
-z.init[is.na(z.init)]=0
+z.init <- z.data
+z.init[is.na(z.init)] <- 0
 #initialize the true number of calls per individual
 #just adding 1 to the number of detected calls here. 
 #Only important to make sure calls.init>=calls.detected
-calls.init=calls.detected+1
+calls.init <- calls.detected+1
 
 #initialize activity centers
-s.init=cbind(runif(M,data$xlim[1],data$xlim[2]),runif(M,data$ylim[1],data$ylim[2])) #start with uniform distribution
+s.init <- cbind(runif(M,data$xlim[1],data$xlim[2]),runif(M,data$ylim[1],data$ylim[2])) #start with uniform distribution
 #update for detected individuals
-y2D=apply(!is.na(data$dB.obs),c(1,2),sum)
+y2D <- apply(!is.na(data$dB.obs),c(1,2),sum)
 for(i in 1:data$n.ind.obs){
-  these.calls=which(callID==i)
+  these.calls <- which(callID==i)
   if(length(these.calls)>0){
     if(length(these.calls)>1){
-      trapcaps=which(colSums(dB[these.calls,]<dummydB)>0)
+      trapcaps <- which(colSums(dB[these.calls,]<dummydB)>0)
     }else{
-      trapcaps=which(dB[these.calls,]<dummydB)
+      trapcaps <- which(dB[these.calls,]<dummydB)
     }
     if(length(trapcaps)>1){
-      s.init[i,]=colMeans(X[trapcaps,])
+      s.init[i,] <- colMeans(X[trapcaps,])
     }else{
-      s.init[i,]=as.numeric(X[trapcaps,])
+      s.init[i,] <- as.numeric(X[trapcaps,])
     }
   }
 }
 
 #ballpark inits for attenuation function parameters - Check attenuation priors to make sure they are appropriate!
-beta0.init=max(data$dB.obs,na.rm=TRUE) #maximum observed received dB is a good starting value
-beta1.init=rnorm(1,beta1,1) #can let nimble draw these from prior, but may not converge if nowhere near truth.
-sigma.d.init=rnorm(1,sigma.d,0.1)
-lambda.C.init=mean(calls.init)
-theta.C.init=1 #something close to strong overdispersion (smaller is greater)
+beta0.init <- max(data$dB.obs,na.rm=TRUE) #maximum observed received dB is a good starting value
+beta1.init <- rnorm(1,beta1,1) #can let nimble draw these from prior, but may not converge if nowhere near truth.
+sigma.d.init <- rnorm(1,sigma.d,0.1)
+lambda.C.init <- mean(calls.init)
+theta.C.init <- 1 #something close to strong overdispersion (smaller is greater)
 
 #supply stuff to nimble
 Niminits <- list(z=z.init,calls=calls.init,s=s.init,beta0=beta0.init,beta1=beta1.init,sigma.d=sigma.d.init,
                  lambda.C=lambda.C.init,theta.C=theta.C.init,calls=calls.init)
-constants<-list(M=M,xlim=data$xlim,ylim=data$ylim,J=J,n.calls=n.calls,zeros=zeros,callID=callID,mindB=mindB,
+constants <- list(M=M,xlim=data$xlim,ylim=data$ylim,J=J,n.calls=n.calls,zeros=zeros,callID=callID,mindB=mindB,
                 calls.detected=calls.detected,X=as.matrix(X))
-Nimdata<-list(dB=dB,dB.unobs=matrix(TRUE,M,J),z=z.data,calls=rep(NA,M))
+Nimdata <- list(dB=dB,dB.unobs=matrix(TRUE,M,J),z=z.data,calls=rep(NA,M))
 
 # set parameters to monitor
-parameters<-c('beta0','beta1','sigma.d','lambda.C','theta.C','N.ind','N.call','psi')
-parameters2=c("s",'calls') #monitor other things. with (possibly) different thinning rate...
+parameters <- c('beta0','beta1','sigma.d','lambda.C','theta.C','N.ind','N.call','psi')
+parameters2 <- c("s",'calls') #monitor other things. with (possibly) different thinning rate...
 
-start.time<-Sys.time()
+start.time <- Sys.time()
 Rmodel <- nimbleModel(code=NimModel, constants=constants,data=Nimdata,check=FALSE,inits=Niminits)
 conf <- configureMCMC(Rmodel,monitors=parameters, thin=1, monitors2=parameters2,thin2=1,useConjugacy = TRUE)
 
@@ -176,13 +176,13 @@ Cmodel <- compileNimble(Rmodel)
 Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 
 # Run the model
-start.time2<-Sys.time()
+start.time2 <- Sys.time()
 Cmcmc$run(1000,reset=FALSE) #short run for demonstration. Can run again to continue sampling where it stopped.
-end.time<-Sys.time()
+end.time <- Sys.time()
 end.time-start.time  # total time for compilation, replacing samplers, and fitting
 end.time-start.time2 # post-compilation run time
 
-mvSamples=as.matrix(Cmcmc$mvSamples)
+mvSamples <- as.matrix(Cmcmc$mvSamples)
 plot(mcmc(mvSamples[250:nrow(mvSamples),]))
 
 data$n.call #True number of calls
@@ -190,8 +190,8 @@ data$n.call #True number of calls
 
 #if you monitor s (and don't thin), you can calculate the acceptance rate. Should remove some burnin
 #after looking at some s posteriors
-mvSamples2=as.matrix(Cmcmc$mvSamples2)
+mvSamples2 <- as.matrix(Cmcmc$mvSamples2)
 plot(mcmc(mvSamples2[2:nrow(mvSamples2),]))
-burnin=1000
+burnin <- 1000
 1-rejectionRate(mcmc(mvSamples2[burnin:nrow(mvSamples2),]))
 
